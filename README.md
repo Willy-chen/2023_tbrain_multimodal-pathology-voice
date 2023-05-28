@@ -15,7 +15,8 @@ We got rank 5 in the Private Leaderboard and rank 3 in the public Leaderboard.
 Required for PANNs implementation:
 - pytorch 
 - torchlibrosa 
-Versions of them are not restricted as long as they're new enough.
+    
+** Versions are not restricted as long as they're new enough. **
 
 ### Preprocess
 * The official csv and wav file should be in `data` dir.
