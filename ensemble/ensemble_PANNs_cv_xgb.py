@@ -14,7 +14,7 @@ import util
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--data_dir', '-d', default='../data')
-parser.add_argument('--feat_dir', '-fd', default='../features')
+parser.add_argument('--feat_dir', '-fd', default='../feature')
 parser.add_argument('--train_feat', default='train/mel_8192_4096_128_cut.npy')
 parser.add_argument('--train_data', default='train/training datalist_SORTED.csv')
 parser.add_argument('--train_wav_dir', default='train/training_voice_data')
@@ -76,7 +76,7 @@ if not os.path.exists(args.cnn_train_feat):
     for idx, pid in enumerate(pid_all):
         if idx % 50 == 0:
             print('Processing {}/{}'.format(idx, len(pid_all)))
-        audio_path = os.path.join(args.train_wav_dir, pid+'.wav')
+        audio_path = os.path.join(os.path.join(args.data_dir, args.train_wav_dir), pid+'.wav')
         
         # Load audio
         (waveform, _) = librosa.load(audio_path, sr=args.sample_rate, mono=True)
@@ -98,12 +98,12 @@ if not os.path.exists(args.cnn_train_feat):
 
 if args.test and (not os.path.exists(args.cnn_public_feat) or not os.path.exists(args.cnn_private_feat)):
     
-    pid_all, fea_all, ans_all = util.read_csv(os.path.join(args.data_dir, args.public_data))
+    pid_all, fea_all, ans_all = util.read_csv(os.path.join(args.data_dir, args.public_data), mode='test')
     audio_fea_all = []
     for idx, pid in enumerate(pid_all):
         if idx % 50 == 0:
             print('Processing {}/{}'.format(idx, len(pid_all)))
-        audio_path = os.path.join(args.public_wav_dir, pid+'.wav')
+        audio_path = os.path.join(os.path.join(args.data_dir, args.public_wav_dir), pid+'.wav')
         
         # Load audio
         (waveform, _) = librosa.load(audio_path, sr=args.sample_rate, mono=True)
@@ -123,12 +123,12 @@ if args.test and (not os.path.exists(args.cnn_public_feat) or not os.path.exists
 
     np.save(os.path.join(args.feat_dir,args.cnn_public_feat), audio_fea_all)
 
-    pid_all, fea_all, ans_all = util.read_csv(os.path.join(args.data_dir, args.private_data))
+    pid_all, fea_all, ans_all = util.read_csv(os.path.join(args.data_dir, args.private_data), mode='test')
     audio_fea_all = []
     for idx, pid in enumerate(pid_all):
         if idx % 50 == 0:
             print('Processing {}/{}'.format(idx, len(pid_all)))
-        audio_path = os.path.join(args.private_wav_dir, pid+'.wav')
+        audio_path = os.path.join(os.path.join(args.data_dir, args.private_wav_dir), pid+'.wav')
         
         # Load audio
         (waveform, _) = librosa.load(audio_path, sr=args.sample_rate, mono=True)
@@ -306,7 +306,7 @@ if args.test:
     print(cnn_res.shape)
     # print(cnn_res)
     
-    FEAT_PATH = os.path.join(args.feat_dir,args.test_feat)
+    FEAT_PATH = os.path.join(args.feat_dir,args.public_feat)
     audio_fea_all = np.load(FEAT_PATH)
     audio_fea_all = np.median(audio_fea_all, axis=2)
     # audio_fea_all = np.hstack([np.mean(audio_fea_all, axis=2), np.median(audio_fea_all, axis=2)])

@@ -10,7 +10,7 @@ import util
 parser = argparse.ArgumentParser()
 parser.add_argument('--data_dir', '-d', default='./data')
 parser.add_argument('--feat_dir', default='./feature')
-parser.add_argument('--train_feat', default='mel_8192_4096_128_cut.npy')
+parser.add_argument('--train_feat', default='train/mel_8192_4096_128_cut.npy')
 parser.add_argument('--train_data', default='train/training datalist_SORTED.csv')
 parser.add_argument('--test', '-t', action='store_true', default=False)
 parser.add_argument('--public_feat', default='public/mel_8192_4096_128_cut.npy')
@@ -171,7 +171,7 @@ if args.test:
     pred_pri = model.predict_proba(fea_pri)
     pri_pred = np.argmax(pred_pri, axis=1)
 
-    with open('submission.csv', 'w') as fp:
+    with open('result/submission.csv', 'w') as fp:
         for pid, pred in zip(pid_pub, pub_pred):
             fp.write('{},{}\n'.format(pid, pred+1))
         for pid, pred in zip(pid_pri, pri_pred):

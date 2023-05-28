@@ -18,47 +18,63 @@ Required for PANNs implementation:
 Versions of them are not restricted as long as they're new enough.
 
 ### Preprocess
+* The official csv and wav file should be in `data` dir.
 ```bash
 python3 sort_tabular_data.py
 ```
-* The officially provided csv file should be in `data` dir.
-* Output npy file is in the corresponding dataset dir in `data` dir.
-
-### Feature Extraction
-```bash
-python3 audio_fea_extract.py
-```
-
+* sort the train csv file in order of label, age and id.
+* output sorted csv file to `data/train`.
 ### Data Augmentation
 ```bash
 python3 data_aug.py
 ```
+* output noise and shift training audio to `data/train` dir.
 
-* The officially provided wav file directory should be in the corresponding directory in `data`
-
+### Feature Extraction
+```bash
+python3 audio_fea_extract.py --mode train
+python3 audio_fea_extract.py --mode public
+python3 audio_fea_extract.py --mode private
+python3 audio_fea_extract.py --mode train -data_aug
+```
+* mode: dataset to extract feature
+* feat_type: audio feature extraction methods, including most librosa feature functions, e.g. mel, mfcc, stft...
+* frame_size
+* hop_size
+* n_mel_bin
+* n_mfcc
+* n_chroma
+* align_op: methods to align different length features, e.g. 'cut', 'pad', 'pre-avg' 
+* data_aug: exrtact feature from augmented audio data
+* output npy file is in the corresponding dataset dir in `data` dir.
 ### Training
 #### Single layer XGBoost 
 ```bash
 python3 cv_xgb.py
 ```
+* train and show model cross validation score
 #### Ensemble of PANNs and XGBoost
 ```bash
+cd ensemble
 python3 ensemble_PANNs_cv_xgb.py
 ```
+* train and show model cross validation score
 
 ### Inference
 
 #### Single layer XGBoost 
 ```bash
-python3 cv_xgb.py -test
+python3 cv_xgb.py -t
 ```
-* `-test`: option for testing both public and private dataset.
-
+* `-t`: option for testing on both public and private dataset.
+* output is in the `result` dir as submission.csv
 #### Ensemble of PANNs and XGBoost
 ```bash
-python3 ensemble_PANNs_cv_xgb.py -test
+cd ensemble
+python3 ensemble_PANNs_cv_xgb.py -t
 ```
 * `n_fold`: number of cross validation folds.
+* output is in the `result` dir as submission.csv
 
 ## 簡介
 ### 問題概述

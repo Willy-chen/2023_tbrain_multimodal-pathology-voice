@@ -16,15 +16,18 @@ parser.add_argument('--train_wav_dir', default='train/training_voice_data')
 parser.add_argument('--public_data', default='public/test_datalist_public.csv')
 parser.add_argument('--public_wav_dir', default='public/test_data_public')
 parser.add_argument('--private_data', default='private/test_datalist_private.csv')
-parser.add_argument('--private_wav_dir', default='public/test_data_private')
+parser.add_argument('--private_wav_dir', default='private/test_data_private')
 parser.add_argument('--frame_size', default=8192)
 parser.add_argument('--hop_size', default=4096)
 parser.add_argument('--n_mel_bin', default=128)
 parser.add_argument('--n_mfcc', default=12)
 parser.add_argument('--n_chroma', default=12)
 parser.add_argument('--align_op', default='cut')
+parser.add_argument('--data_aug', action='store_true', default=False)
 args = parser.parse_args()
 
+shifts = [-4, -3, -2, -1, 1, 2, 3, 4]
+noises = [4, ]
 
 if args.mode == 'train':
     CSV_PATH = os.path.join(args.data_dir, args.train_data)
@@ -64,19 +67,7 @@ else:
     pid_all, _, ans_all = util.read_csv(CSV_PATH, mode='test')
 print('Data shapes:', len(pid_all), ans_all.shape)
 
-fea_all = []
-frame_num_all = []
-for idx, pid in enumerate(pid_all):
-    if idx % 50 == 0:
-        print('Processing {}/{}'.format(idx, len(pid_all)))
-    
-    if args.mode == 'train':
-        wav_path = os.path.join(os.path.join(args.data_dir, args.train_wav_dir), pid+'.wav')
-    elif args.mode == 'public':
-        wav_path = os.path.join(os.path.join(args.data_dir, args.public_wav_dir), pid+'.wav')
-    elif args.mode == 'private':
-        wav_path = os.path.join(os.path.join(args.data_dir, args.private_wav_dir), pid+'.wav')
-
+def extract_feat(wav_path, FEA_TYPE):
     y, sr = librosa.load(wav_path, sr=None)
     if FEA_TYPE == 'mel':
         fea_mat = librosa.feature.melspectrogram(y=y, sr=sr, n_fft=FRAME_SIZE, hop_length=HOP_SIZE, n_mels=N_MEL_BIN)
@@ -126,32 +117,151 @@ for idx, pid in enumerate(pid_all):
         fea_mat = y[np.newaxis, :]
     else:
         raise Exception('Unsupported FEA_TYPE: {}'.format(FEA_TYPE))
-    fea_all.append(fea_mat) # Shape of fea_mat: (freq, time)
-    frame_num_all.append(fea_mat.shape[1])
+    
+    return fea_mat
 
-frame_num_min = min(frame_num_all)
-frame_num_max = max(frame_num_all)
-if ALIGN_OP == 'cut':
-    fea_all = [fea[:, :frame_num_min] for fea in fea_all]
-elif ALIGN_OP == 'pad':
-    fea_all = [np.pad(fea, ((0, 0),(0, frame_num_max-fea.shape[1]))) for fea in fea_all]
-elif ALIGN_OP == 'pre-avg':
-    fea_all = [np.mean(fea, axis=1) for fea in fea_all]
-elif ALIGN_OP == 'min-stack':
-    stacked_fea_all = []
-    stacked_pid_all = []
-    for fea, pid in zip(fea_all, pid_all):
-        for begin in range(0, fea.shape[1], frame_num_min):
-            end = begin + frame_num_min
-            if end > fea.shape[1]:
-                break
-            stacked_fea_all.append(fea[:, begin:end])
-            stacked_pid_all.append(pid)
-    fea_all = stacked_fea_all
-    print('Stacked pid len:', len(stacked_pid_all))
-    with open(output_to + '.txt', 'w') as fout:
-        fout.write('\n'.join(stacked_pid_all))
+if not args.data_aug:
+    fea_all = []
+    frame_num_all = []
+    for idx, pid in enumerate(pid_all):
+        if idx % 50 == 0:
+            print('Processing {}/{}'.format(idx, len(pid_all)))
+        
+        if args.mode == 'train':
+            wav_path = os.path.join(os.path.join(args.data_dir, args.train_wav_dir), pid+'.wav')
+        elif args.mode == 'public':
+            wav_path = os.path.join(os.path.join(args.data_dir, args.public_wav_dir), pid+'.wav')
+        elif args.mode == 'private':
+            wav_path = os.path.join(os.path.join(args.data_dir, args.private_wav_dir), pid+'.wav')
 
-fea_all = np.stack(fea_all)
-print('fea shapes:', fea_all.shape)
-np.save(output_to + '.npy', fea_all)
+        fea_mat = extract_feat(wav_path, FEA_TYPE)
+        fea_all.append(fea_mat) # Shape of fea_mat: (freq, time)
+        frame_num_all.append(fea_mat.shape[1])
+
+    frame_num_min = min(frame_num_all)
+    frame_num_max = max(frame_num_all)
+    if ALIGN_OP == 'cut':
+        fea_all = [fea[:, :frame_num_min] for fea in fea_all]
+    elif ALIGN_OP == 'pad':
+        fea_all = [np.pad(fea, ((0, 0),(0, frame_num_max-fea.shape[1]))) for fea in fea_all]
+    elif ALIGN_OP == 'pre-avg':
+        fea_all = [np.mean(fea, axis=1) for fea in fea_all]
+    elif ALIGN_OP == 'min-stack':
+        stacked_fea_all = []
+        stacked_pid_all = []
+        for fea, pid in zip(fea_all, pid_all):
+            for begin in range(0, fea.shape[1], frame_num_min):
+                end = begin + frame_num_min
+                if end > fea.shape[1]:
+                    break
+                stacked_fea_all.append(fea[:, begin:end])
+                stacked_pid_all.append(pid)
+        fea_all = stacked_fea_all
+        print('Stacked pid len:', len(stacked_pid_all))
+        with open(output_to + '.txt', 'w') as fout:
+            fout.write('\n'.join(stacked_pid_all))
+
+    fea_all = np.stack(fea_all)
+    print('fea shapes:', fea_all.shape)
+    np.save(output_to + '.npy', fea_all)
+else:
+    if args.mode == 'public' or args.mode == 'private':
+        raise Exception('data_aug Unsupported for testing!')
+    
+    for noise in noises:
+        fea_all = []
+        frame_num_all = []
+        extracted_pid_all = []
+        for idx, pid in enumerate(pid_all):
+            if idx % 50 == 0:
+                print('Processing {}/{}'.format(idx, len(pid_all)))
+            
+            output_to_save = output_to + '_noise_{}'.format(noise)
+            wav_path = os.path.join(os.path.join(args.data_dir, args.train_wav_dir+'_noise_{}/'.format(noise)), pid+'.wav')
+            
+            if not os.path.exists(wav_path):
+                continue
+
+            fea_mat = extract_feat(wav_path, FEA_TYPE)
+            fea_all.append(fea_mat) # Shape of fea_mat: (freq, time)
+            frame_num_all.append(fea_mat.shape[1])
+            extracted_pid_all.append(pid)
+
+        frame_num_min = min(frame_num_all)
+        frame_num_max = max(frame_num_all)
+        if ALIGN_OP == 'cut':
+            fea_all = [fea[:, :frame_num_min] for fea in fea_all]
+        elif ALIGN_OP == 'pad':
+            fea_all = [np.pad(fea, ((0, 0),(0, frame_num_max-fea.shape[1]))) for fea in fea_all]
+        elif ALIGN_OP == 'pre-avg':
+            fea_all = [np.mean(fea, axis=1) for fea in fea_all]
+        elif ALIGN_OP == 'min-stack':
+            stacked_fea_all = []
+            stacked_pid_all = []
+            for fea, pid in zip(fea_all, pid_all):
+                for begin in range(0, fea.shape[1], frame_num_min):
+                    end = begin + frame_num_min
+                    if end > fea.shape[1]:
+                        break
+                    stacked_fea_all.append(fea[:, begin:end])
+                    stacked_pid_all.append(pid)
+            fea_all = stacked_fea_all
+            print('Stacked pid len:', len(stacked_pid_all))
+            with open(output_to_save + '.txt', 'w') as fout:
+                fout.write('\n'.join(stacked_pid_all))
+
+        fea_all = np.stack(fea_all)
+        print('fea shapes:', fea_all.shape)
+        np.save(output_to_save + '.npy', fea_all)
+
+        with open(output_to_save + '.txt', 'w') as fout:
+            fout.write('\n'.join(extracted_pid_all))
+
+    for shift in shifts:
+        fea_all = []
+        frame_num_all = []
+        extracted_pid_all = []
+        for idx, pid in enumerate(pid_all):
+            if idx % 50 == 0:
+                print('Processing {}/{}'.format(idx, len(pid_all)))
+            
+            output_to_save = output_to + '_shift_{}'.format(shift)
+            wav_path = os.path.join(os.path.join(args.data_dir, args.train_wav_dir+'_shift_{}/'.format(shift)), pid+'.wav')
+            
+            if not os.path.exists(wav_path):
+                continue
+
+            fea_mat = extract_feat(wav_path, FEA_TYPE)
+            fea_all.append(fea_mat) # Shape of fea_mat: (freq, time)
+            frame_num_all.append(fea_mat.shape[1])
+            extracted_pid_all.append(pid)
+
+        frame_num_min = min(frame_num_all)
+        frame_num_max = max(frame_num_all)
+        if ALIGN_OP == 'cut':
+            fea_all = [fea[:, :frame_num_min] for fea in fea_all]
+        elif ALIGN_OP == 'pad':
+            fea_all = [np.pad(fea, ((0, 0),(0, frame_num_max-fea.shape[1]))) for fea in fea_all]
+        elif ALIGN_OP == 'pre-avg':
+            fea_all = [np.mean(fea, axis=1) for fea in fea_all]
+        elif ALIGN_OP == 'min-stack':
+            stacked_fea_all = []
+            stacked_pid_all = []
+            for fea, pid in zip(fea_all, pid_all):
+                for begin in range(0, fea.shape[1], frame_num_min):
+                    end = begin + frame_num_min
+                    if end > fea.shape[1]:
+                        break
+                    stacked_fea_all.append(fea[:, begin:end])
+                    stacked_pid_all.append(pid)
+            fea_all = stacked_fea_all
+            print('Stacked pid len:', len(stacked_pid_all))
+            with open(output_to_save + '.txt', 'w') as fout:
+                fout.write('\n'.join(stacked_pid_all))
+
+        fea_all = np.stack(fea_all)
+        print('fea shapes:', fea_all.shape)
+        np.save(output_to_save + '.npy', fea_all)
+
+        with open(output_to_save + '.txt', 'w') as fout:
+            fout.write('\n'.join(extracted_pid_all))
