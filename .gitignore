@@ -4,4 +4,4 @@ __pycache__
 /results/*
 /ensemble/model/*
 /ensemble/features/*
-/ensemble/results
+/ensemble/results/*
