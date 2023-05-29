@@ -15,7 +15,9 @@ We got rank 5 in the Private Leaderboard and rank 3 in the public Leaderboard.
 Required for PANNs implementation:
 - pytorch 
 - torchlibrosa 
-    
+
+PANNs model can be downloaded from the following url: <br>
+https://zenodo.org/record/3987831/files/Cnn6_mAP%3D0.343.pth?download=1 <br>
 ** Versions are not restricted as long as they're new enough. **
 
 ### Preprocess
